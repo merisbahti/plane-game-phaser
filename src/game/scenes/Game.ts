@@ -1,35 +1,44 @@
-import { Scene } from 'phaser';
+import { Scene } from "phaser";
 
-export class Game extends Scene
-{
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    msg_text : Phaser.GameObjects.Text;
+export class Game extends Scene {
+  camera: Phaser.Cameras.Scene2D.Camera;
+  background: Phaser.GameObjects.Image;
+  msg_text: Phaser.GameObjects.Text;
 
-    constructor ()
-    {
-        super('Game');
-    }
+  constructor() {
+    super("Game");
+  }
 
-    create ()
-    {
-        this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x00ff00);
+  create() {
+    this.camera = this.cameras.main;
+    this.camera.setBackgroundColor(0xaaaaaa);
+    // Create the circle with Matter physics
+    this.matter.add.sprite(300, 100, "circle", undefined, {
+      shape: "circle",
+      render: { lineColor: 0x00ffff },
+    });
+    this.matter.add.sprite(300, 100, "circle", undefined, {
+      shape: "circle",
+      render: { lineColor: 0x00ffff },
+    });
 
-        this.background = this.add.image(512, 384, 'background');
-        this.background.setAlpha(0.5);
+    // Adjust rendering color and transparency
 
-        this.msg_text = this.add.text(512, 384, 'Make something fun!\nand share it with us:\nsupport@phaser.io', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        });
-        this.msg_text.setOrigin(0.5);
+    this.input.on("pointerdown", (pointer: PointerEvent) => {
+      this.matter.add.sprite(pointer.x, pointer.y, "circle", undefined, {
+        shape: "circle",
+        render: { lineColor: 0x00ffff, fillColor: 0x00ffff },
+        scale: { x: 0.1, y: 0.1 },
+      });
+    });
 
-        this.input.once('pointerdown', () => {
+    this.matter.add
+      .sprite(300, 500, "square", undefined, {
+        render: { lineColor: 0x00ffff },
+        isStatic: true,
+      })
+      .setOrigin(0.5, 0.5);
+  }
 
-            this.scene.start('GameOver');
-
-        });
-    }
+  update(time: number, delta: number): void {}
 }
