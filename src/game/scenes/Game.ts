@@ -42,11 +42,9 @@ export class Game extends Scene {
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
 
-    const circle = this.matter.add.sprite(300, 100, "circle", undefined, {
-      shape: "circle",
-      render: { lineColor: 0x00ffff },
-    });
-    circle.setScale(0.5, 0.5); // Scale down the circle
+    this.matter.add
+      .sprite(300, 500, "square", undefined, { isStatic: true })
+      .setScale(100, 1);
 
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       this.state.keysDown?.add(event.key);
@@ -114,7 +112,7 @@ const cannonShooter: System = ({ state, matter }) => {
       .setScale(0.1, 0.1)
       .setTint(0xffff00);
 
-    const outpushSpeed = 30;
+    const outpushSpeed = 20;
 
     body.setVelocity(
       (player.body?.velocity.x ?? 0) + outpushSpeed * Math.cos(angle),
