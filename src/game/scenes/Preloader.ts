@@ -28,6 +28,10 @@ export class Preloader extends Scene {
 
     this.load.image("circle", "circle.svg");
     this.load.image("square", "square.svg");
+    this.load.spritesheet("kaboom", "kaboom.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
   }
 
   create() {
@@ -35,7 +39,15 @@ export class Preloader extends Scene {
     //  For example, you can define global animations here, so we can use them in other scenes.
 
     //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
-
+    this.anims.create({
+      key: "kaboom-boom",
+      frames: this.anims.generateFrameNumbers("kaboom", {
+        start: 0,
+        end: 7,
+      }),
+      // repeat: -1,
+      frameRate: 16,
+    });
     this.scene.start("Game");
   }
 }

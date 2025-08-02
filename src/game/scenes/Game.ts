@@ -6,7 +6,14 @@ export class Game extends Scene {
   background: Phaser.GameObjects.Image;
 
   state: GameState;
-  systems: Array<ReturnType<System>> = [];
+  initialSystems = [
+    bombSpawner,
+    playerControls,
+    boxSpawner,
+    cannonShooter,
+    explosionSystem,
+  ];
+  updaters: Array<ReturnType<System>> = [];
 
   constructor() {
     super("Game");
@@ -23,7 +30,7 @@ export class Game extends Scene {
         .sprite(100, 300, "square", undefined, {
           render: { lineColor: 0x00ffff },
         })
-        .setScale(0.3, 0.1)
+        .setScale(0.6, 0.2)
         .setTint(0xaaff00),
       get pointerPos() {
         return camera.getWorldPoint(
@@ -33,11 +40,10 @@ export class Game extends Scene {
       },
       keysDown: new Set<string>(),
       planetBodies: [],
+      activeExplosions: [],
     };
 
-    this.systems = [bombSpawner, playerControls, boxSpawner, cannonShooter].map(
-      (system) => system(this),
-    );
+    this.updaters = this.initialSystems.map((system) => system(this));
 
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
@@ -57,12 +63,22 @@ export class Game extends Scene {
   update(time: number, delta: number): void {
     this.camera.centerOn(this.state.player.x, this.state.player.y);
 
-    this.systems.forEach((system) => system(time, delta));
+    this.updaters.forEach((system) => system(time, delta));
   }
 }
 // random nice color between 0x000000 and 0xffffff
 const randomColor = () => {
   return 0xffffff / 2 + Math.floor((Math.random() * 0xffffff) / 2);
+};
+
+const explosionSystem: System = (game) => {
+  const sprite = game.add.sprite(100, 100, "kaboom");
+  sprite.on("animationcomplete", () => {
+    sprite.destroy();
+  });
+  sprite.play("kaboom-boom");
+
+  return (time: number, _delta: number) => {};
 };
 
 const boxSpawner: System = (game) => {
@@ -112,7 +128,7 @@ const cannonShooter: System = ({ state, matter }) => {
       .setScale(0.1, 0.1)
       .setTint(0xffff00);
 
-    const outpushSpeed = 20;
+    const outpushSpeed = 30;
 
     body.setVelocity(
       (player.body?.velocity.x ?? 0) + outpushSpeed * Math.cos(angle),
@@ -197,11 +213,10 @@ const bombSpawner: System = ({ state, matter }) => {
       Math.sin(angle + Math.PI / 2 + (spawnOnTop ? Math.PI : 0)) * playerHeight; // 90 degrees to the right
 
     const body = matter.add
-      .sprite(x + offsetX, y + offsetY, "circle", undefined, {
-        shape: "circle",
-      })
-      .setScale(0.1, 0.1)
+      .sprite(x + offsetX, y + offsetY, "square", undefined, {})
+      .setScale(0.2, 0.05)
       .setTint(0x000000);
+    body.rotation = state.player.rotation;
 
     const outpushSpeed = 30;
 
@@ -230,7 +245,7 @@ const playerControls: System = ({ state }) => {
     const turnSpeed = 0.05; // Adjust this value to control the rotation speed
     player.setAngularVelocity(angleDiff * turnSpeed);
 
-    const forceMagnitude = 0.00005 * delta; // Adjust this value to control the force applied
+    const forceMagnitude = 0.0002 * delta; // Adjust this value to control the force applied
 
     if (keysDown?.has("z")) {
       const force = new Phaser.Math.Vector2(
