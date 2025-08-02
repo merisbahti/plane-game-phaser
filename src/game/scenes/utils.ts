@@ -5,7 +5,8 @@ export type GameState = {
   pointerPos: { x: number; y: number };
   keysDown?: Set<string>;
   planetBodies: Array<Phaser.Physics.Matter.Sprite>;
-  activeExplosions: Array<Phaser.Physics.Matter.Sprite>;
+  activeExplosions: Array<Phaser.GameObjects.Sprite>;
+  addExplosion: (x: number, y: number) => void;
 };
 
 export type System = (

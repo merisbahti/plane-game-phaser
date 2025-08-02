@@ -22,6 +22,7 @@ export class Game extends Scene {
   create() {
     const input = this.input;
     this.camera = this.cameras.main;
+    const game = this;
 
     const camera = this.camera;
     camera.setZoom(0.5);
@@ -41,6 +42,17 @@ export class Game extends Scene {
       keysDown: new Set<string>(),
       planetBodies: [],
       activeExplosions: [],
+      addExplosion: (x: number, y: number) => {
+        const sprite = game.add.sprite(x, y, "kaboom");
+        sprite.on("animationcomplete", () => {
+          sprite.destroy();
+          this.state.activeExplosions = this.state.activeExplosions.filter(
+            (x) => x !== sprite,
+          );
+        });
+        sprite.play("kaboom-boom");
+        this.state.activeExplosions.push(sprite);
+      },
     };
 
     this.updaters = this.initialSystems.map((system) => system(this));
@@ -71,14 +83,46 @@ const randomColor = () => {
   return 0xffffff / 2 + Math.floor((Math.random() * 0xffffff) / 2);
 };
 
-const explosionSystem: System = (game) => {
-  const sprite = game.add.sprite(100, 100, "kaboom");
-  sprite.on("animationcomplete", () => {
-    sprite.destroy();
-  });
-  sprite.play("kaboom-boom");
+const explosionSystem: System = ({ matter, state }) => {
+  return (time: number, _delta: number) => {
+    state.activeExplosions.forEach((explosion) => {
+      const { x: explosionX, y: explosionY } = explosion.getCenter();
 
-  return (time: number, _delta: number) => {};
+      const radius = explosion.displayWidth * 2;
+      const bodiesInRegion = matter.query.region(matter.world.getAllBodies(), {
+        min: { x: explosionX - radius, y: explosionY - radius },
+        max: { x: explosionX + radius, y: explosionY + radius },
+      });
+      const bodiesWithinRadius = bodiesInRegion.filter((body) => {
+        const dx = body.position.x - explosionX;
+        const dy = body.position.y - explosionY;
+        return Math.sqrt(dx * dx + dy * dy) <= radius;
+      });
+
+      bodiesWithinRadius.forEach((body) => {
+        if (body.isStatic) {
+          return; // Skip static bodies and ground
+        }
+
+        const distance = Math.sqrt(
+          (body.position.x - explosionX) ** 2 +
+            (body.position.y - explosionY) ** 2,
+        );
+        const intensity = 1 - distance / radius;
+
+        // set velocity away from the bomb
+
+        matter.body.applyForce(
+          body,
+          { x: explosionX, y: explosionY },
+          {
+            x: (body.position.x - explosionX) * 0.0001 * intensity,
+            y: (body.position.y - explosionY) * 0.0001 * intensity,
+          },
+        );
+      });
+    });
+  };
 };
 
 const boxSpawner: System = (game) => {
@@ -156,41 +200,8 @@ const bombSpawner: System = ({ state, matter }) => {
       }
 
       for (const collidedBomb of collidedBombs) {
-        const radius = 400;
-        const { x: bombX, y: bombY } = collidedBomb;
-
-        const bodiesInRegion = matter.query.region(
-          matter.world.getAllBodies(),
-          {
-            min: { x: bombX - radius, y: bombY - radius },
-            max: { x: bombX + radius, y: bombY + radius },
-          },
-        );
-        const bodiesWithinRadius = bodiesInRegion.filter((body) => {
-          const dx = body.position.x - bombX;
-          const dy = body.position.y - bombY;
-          return Math.sqrt(dx * dx + dy * dy) <= radius;
-        });
-
+        state.addExplosion(collidedBomb.x, collidedBomb.y);
         collidedBomb.destroy();
-
-        bodiesWithinRadius.forEach((body) => {
-          if (body.isStatic) {
-            return; // Skip static bodies and ground
-          }
-
-          const distance = Math.sqrt(
-            (body.position.x - bombX) ** 2 + (body.position.y - bombY) ** 2,
-          );
-          const intensity = 1 - distance / radius;
-
-          // set velocity away from the bomb
-
-          matter.body.setVelocity(body, {
-            x: (body.position.x - bombX) * 0.1 * intensity,
-            y: (body.position.y - bombY) * 0.1 * intensity,
-          });
-        });
       }
     },
   );
