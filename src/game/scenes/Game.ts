@@ -3,33 +3,52 @@ import { Scene } from "phaser";
 export class Game extends Scene {
   camera: Phaser.Cameras.Scene2D.Camera;
   background: Phaser.GameObjects.Image;
-  msg_text: Phaser.GameObjects.Text;
+
+  state: {
+    player: Phaser.Physics.Matter.Sprite;
+    pointerPos: { x: number; y: number };
+  };
 
   constructor() {
     super("Game");
   }
 
   create() {
+    this.state = {
+      player: this.matter.add
+        .sprite(100, 300, "square", undefined, {
+          render: { lineColor: 0x00ffff },
+        })
+        .setScale(1, 0.5),
+      pointerPos: { x: 0, y: 0 },
+    };
     this.camera = this.cameras.main;
+
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
     this.matter.add.sprite(300, 100, "circle", undefined, {
       shape: "circle",
       render: { lineColor: 0x00ffff },
     });
-    this.matter.add.sprite(300, 100, "circle", undefined, {
+
+    const circle = this.matter.add.sprite(300, 100, "circle", undefined, {
       shape: "circle",
       render: { lineColor: 0x00ffff },
     });
+    circle.setScale(0.5, 0.5); // Scale down the circle
 
     // Adjust rendering color and transparency
+    this.input.on("pointermove", ({ worldX, worldY }: Phaser.Input.Pointer) => {
+      console.log("Pointer moved:", worldX, worldY);
+      this.state.pointerPos = { x: worldX, y: worldY };
+    });
+    const keyobject = this.input.keyboard?.addKey("z");
+    keyobject?.on("down", (key: InputEvent) => {
+      console.log("Key pressed:", key);
+    });
 
-    this.input.on("pointerdown", (pointer: PointerEvent) => {
-      this.matter.add.sprite(pointer.x, pointer.y, "circle", undefined, {
-        shape: "circle",
-        render: { lineColor: 0x00ffff, fillColor: 0x00ffff },
-        scale: { x: 0.1, y: 0.1 },
-      });
+    this.input.on("down", (pointer: InputEvent) => {
+      console.log("Key down:", pointer);
     });
 
     this.matter.add
@@ -37,8 +56,39 @@ export class Game extends Scene {
         render: { lineColor: 0x00ffff },
         isStatic: true,
       })
-      .setOrigin(0.5, 0.5);
+      .setOrigin(0.5, 0.5)
+      .setScale(100, 0.1);
   }
 
-  update(time: number, delta: number): void {}
+  update(time: number, delta: number): void {
+    this.camera.centerOn(this.state.player.x, this.state.player.y);
+
+    const { x: worldX, y: worldY } = this.state.pointerPos;
+    console.log(
+      "currpointer",
+      worldX,
+      worldY,
+      this.state.player.x,
+      this.state.player.y,
+    );
+    const desiredAngle = Math.atan2(
+      worldY - this.state.player.y,
+      worldX - this.state.player.x,
+    );
+
+    const angle = this.state.player.rotation;
+    // slowly rotate the player towards the desired angle
+    const angleDiff = normalizeAngle(desiredAngle - angle);
+
+    const turnSpeed = 0.05; // Adjust this value to control the rotation speed
+    this.state.player.setAngularVelocity(angleDiff * turnSpeed);
+  }
 }
+export const normalizeAngle = (angle: number) => {
+  if (angle > Math.PI) {
+    return angle - 2 * Math.PI;
+  } else if (angle < -Math.PI) {
+    return angle + 2 * Math.PI;
+  }
+  return angle;
+};
