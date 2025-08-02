@@ -6,11 +6,10 @@ export class Game extends Scene {
 
   state: {
     player: Phaser.Physics.Matter.Sprite;
-    bombs: Phaser.Physics.Matter.Sprite[];
     pointerPos: { x: number; y: number };
     keysDown?: Set<string>;
-    bombsSpawner: ReturnType<typeof bombSpawner>;
   };
+  systems: Array<ReturnType<System>> = [];
 
   constructor() {
     super("Game");
@@ -32,10 +31,10 @@ export class Game extends Scene {
           input.activePointer.worldY,
         );
       },
-      bombs: [],
       keysDown: new Set<string>(),
-      bombsSpawner: bombSpawner(),
     };
+
+    this.systems = [bombSpawner, playerControls].map((system) => system(this));
 
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
@@ -64,18 +63,16 @@ export class Game extends Scene {
 
   update(time: number, delta: number): void {
     this.camera.centerOn(this.state.player.x, this.state.player.y);
-    updatePlayerAngle(this.state);
-    playerThruster(this.state, delta);
-    this.state.bombsSpawner(this, time, delta);
+
+    this.systems.forEach((system) => system(time, delta));
   }
 }
-const bombSpawner = () => {
+
+type System = (game: Game) => (time: number, delta: number) => void;
+const bombSpawner: System = ({ state: { player, keysDown }, matter }) => {
   let lastSpawnTime = 0;
-  return (
-    { state: { player, bombs, keysDown }, matter }: Game,
-    time: number,
-    _delta: number,
-  ) => {
+  const bombs: Array<Phaser.Physics.Matter.Sprite> = [];
+  return (time: number, _delta: number) => {
     if (!keysDown?.has("b") || time - lastSpawnTime < 100) {
       return;
     }
@@ -118,33 +115,30 @@ const bombSpawner = () => {
   };
 };
 
-const playerThruster = (state: Game["state"], delta: number) => {
-  const angle = state.player.rotation;
-  const forceMagnitude = 0.00005 * delta; // Adjust this value to control the force applied
+const playerControls: System = ({ state }) => {
+  return (_time: number, delta: number) => {
+    const { player, keysDown, pointerPos } = state;
+    const angle = player.rotation;
+    const { x: worldX, y: worldY } = pointerPos;
 
-  if (state.keysDown?.has("z")) {
-    const force = new Phaser.Math.Vector2(
-      Math.cos(angle) * forceMagnitude,
-      Math.sin(angle) * forceMagnitude,
-    );
-    state.player.applyForce(force);
-  }
-};
+    const desiredAngle = Math.atan2(worldY - player.y, worldX - player.x);
 
-const updatePlayerAngle = (state: Game["state"]) => {
-  const { x: worldX, y: worldY } = state.pointerPos;
+    // slowly rotate the player towards the desired angle
+    const angleDiff = normalizeAngle(desiredAngle - angle);
 
-  const desiredAngle = Math.atan2(
-    worldY - state.player.y,
-    worldX - state.player.x,
-  );
+    const turnSpeed = 0.05; // Adjust this value to control the rotation speed
+    player.setAngularVelocity(angleDiff * turnSpeed);
 
-  const angle = state.player.rotation;
-  // slowly rotate the player towards the desired angle
-  const angleDiff = normalizeAngle(desiredAngle - angle);
+    const forceMagnitude = 0.00005 * delta; // Adjust this value to control the force applied
 
-  const turnSpeed = 0.05; // Adjust this value to control the rotation speed
-  state.player.setAngularVelocity(angleDiff * turnSpeed);
+    if (keysDown?.has("z")) {
+      const force = new Phaser.Math.Vector2(
+        Math.cos(angle) * forceMagnitude,
+        Math.sin(angle) * forceMagnitude,
+      );
+      player.applyForce(force);
+    }
+  };
 };
 
 export const normalizeAngle = (angle: number) => {
