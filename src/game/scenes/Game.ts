@@ -35,8 +35,8 @@ export class Game extends Scene {
       keysDown: new Set<string>(),
     };
 
-    this.systems = [bombSpawner, playerControls, boxSpawner].map((system) =>
-      system(this),
+    this.systems = [bombSpawner, playerControls, boxSpawner, cannonShooter].map(
+      (system) => system(this),
     );
 
     this.camera.setBackgroundColor(0xaaaaaa);
@@ -97,6 +97,41 @@ const boxSpawner: System = (game) => {
 };
 
 type System = (game: Game) => (time: number, delta: number) => void;
+
+const cannonShooter: System = ({ state, matter }) => {
+  let lastSpawnTime = 0;
+
+  return (time: number, _delta: number) => {
+    const { player, keysDown } = state;
+    if (!keysDown?.has("c") || time - lastSpawnTime < 100) {
+      return;
+    }
+    lastSpawnTime = time;
+    const { x, y } = player;
+
+    const angle = normalizeAngle(player.rotation); // Ensure angle is within [0, 2π]
+
+    const playerWidth = player.displayWidth + 2;
+
+    const offsetX = Math.cos(angle) * playerWidth;
+
+    const offsetY = Math.sin(angle) * playerWidth; // 90 degrees to the right
+
+    const body = matter.add
+      .sprite(x + offsetX, y + offsetY, "circle", undefined, {
+        shape: "circle",
+      })
+      .setScale(0.1, 0.1)
+      .setTint(0xffff00);
+
+    const outpushSpeed = 30;
+
+    body.setVelocity(
+      (player.body?.velocity.x ?? 0) + outpushSpeed * Math.cos(angle),
+      (player.body?.velocity.y ?? 0) + outpushSpeed * Math.sin(angle),
+    );
+  };
+};
 const bombSpawner: System = ({ state, matter }) => {
   let lastSpawnTime = 0;
   const bombs: Array<Phaser.Physics.Matter.Sprite> = [];
