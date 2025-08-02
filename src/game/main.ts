@@ -9,7 +9,10 @@ import { Preloader } from "./scenes/Preloader";
 //  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 const config: Phaser.Types.Core.GameConfig = {
   type: AUTO,
-  physics: { default: "matter", matter: { enabled: true } },
+  physics: {
+    default: "matter",
+    matter: { enabled: true, gravity: { x: 0, y: 0 } },
+  },
   width: 1024,
   height: 768,
   parent: "game-container",
