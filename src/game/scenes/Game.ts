@@ -1,4 +1,3 @@
-import { Vector } from "matter";
 import { Scene } from "phaser";
 
 export class Game extends Scene {
@@ -29,10 +28,6 @@ export class Game extends Scene {
 
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
-    this.matter.add.sprite(300, 100, "circle", undefined, {
-      shape: "circle",
-      render: { lineColor: 0x00ffff },
-    });
 
     const circle = this.matter.add.sprite(300, 100, "circle", undefined, {
       shape: "circle",
@@ -66,35 +61,41 @@ export class Game extends Scene {
       .setScale(100, 0.1);
   }
 
-  update(time: number, delta: number): void {
+  update(_time: number, delta: number): void {
     this.camera.centerOn(this.state.player.x, this.state.player.y);
-
-    const { x: worldX, y: worldY } = this.state.pointerPos;
-
-    const desiredAngle = Math.atan2(
-      worldY - this.state.player.y,
-      worldX - this.state.player.x,
-    );
-
-    const angle = this.state.player.rotation;
-    // slowly rotate the player towards the desired angle
-    const angleDiff = normalizeAngle(desiredAngle - angle);
-
-    const turnSpeed = 0.05; // Adjust this value to control the rotation speed
-    this.state.player.setAngularVelocity(angleDiff * turnSpeed);
-
-    if (this.state.keysDown?.has("z")) {
-      const totalForce = 0.001 * delta; // Adjust this value to control the force applied
-      const angle = this.state.player.rotation;
-      this.state.player.applyForce(
-        new Phaser.Math.Vector2(
-          Math.cos(angle) * totalForce,
-          Math.sin(angle) * totalForce,
-        ),
-      );
-    }
+    updatePlayerAngle(this.state);
+    playerThruster(this.state, delta);
   }
 }
+const playerThruster = (state: Game["state"], delta: number) => {
+  const angle = state.player.rotation;
+  const forceMagnitude = 0.001 * delta; // Adjust this value to control the force applied
+
+  if (state.keysDown?.has("z")) {
+    const force = new Phaser.Math.Vector2(
+      Math.cos(angle) * forceMagnitude,
+      Math.sin(angle) * forceMagnitude,
+    );
+    state.player.applyForce(force);
+  }
+};
+
+const updatePlayerAngle = (state: Game["state"]) => {
+  const { x: worldX, y: worldY } = state.pointerPos;
+
+  const desiredAngle = Math.atan2(
+    worldY - state.player.y,
+    worldX - state.player.x,
+  );
+
+  const angle = state.player.rotation;
+  // slowly rotate the player towards the desired angle
+  const angleDiff = normalizeAngle(desiredAngle - angle);
+
+  const turnSpeed = 0.05; // Adjust this value to control the rotation speed
+  state.player.setAngularVelocity(angleDiff * turnSpeed);
+};
+
 export const normalizeAngle = (angle: number) => {
   if (angle > Math.PI) {
     return angle - 2 * Math.PI;
