@@ -6,8 +6,10 @@ export class Game extends Scene {
 
   state: {
     player: Phaser.Physics.Matter.Sprite;
+    bombs: Phaser.Physics.Matter.Sprite[];
     pointerPos: { x: number; y: number };
     keysDown?: Set<string>;
+    bombsSpawner: ReturnType<typeof bombSpawner>;
   };
 
   constructor() {
@@ -15,16 +17,25 @@ export class Game extends Scene {
   }
 
   create() {
+    const input = this.input;
+    this.camera = this.cameras.main;
+    const camera = this.camera;
     this.state = {
       player: this.matter.add
         .sprite(100, 300, "square", undefined, {
           render: { lineColor: 0x00ffff },
         })
-        .setScale(1, 0.5),
-      pointerPos: { x: 0, y: 0 },
+        .setScale(0.3, 0.1),
+      get pointerPos() {
+        return camera.getWorldPoint(
+          input.activePointer.worldX,
+          input.activePointer.worldY,
+        );
+      },
+      bombs: [],
       keysDown: new Set<string>(),
+      bombsSpawner: bombSpawner(),
     };
-    this.camera = this.cameras.main;
 
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
@@ -35,21 +46,11 @@ export class Game extends Scene {
     });
     circle.setScale(0.5, 0.5); // Scale down the circle
 
-    // Adjust rendering color and transparency
-    this.input.on("pointermove", ({ worldX, worldY }: Phaser.Input.Pointer) => {
-      console.log("Pointer moved:", worldX, worldY);
-      this.state.pointerPos = { x: worldX, y: worldY };
-    });
-
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       this.state.keysDown?.add(event.key);
     });
     this.input.keyboard?.on("keyup", (event: KeyboardEvent) => {
       this.state.keysDown?.delete(event.key);
-    });
-
-    this.input.on("down", (pointer: InputEvent) => {
-      console.log("Key down:", pointer);
     });
 
     this.matter.add
@@ -61,15 +62,65 @@ export class Game extends Scene {
       .setScale(100, 0.1);
   }
 
-  update(_time: number, delta: number): void {
+  update(time: number, delta: number): void {
     this.camera.centerOn(this.state.player.x, this.state.player.y);
     updatePlayerAngle(this.state);
     playerThruster(this.state, delta);
+    this.state.bombsSpawner(this, time, delta);
   }
 }
+const bombSpawner = () => {
+  let lastSpawnTime = 0;
+  return (
+    { state: { player, bombs, keysDown }, matter }: Game,
+    time: number,
+    _delta: number,
+  ) => {
+    if (!keysDown?.has("b") || time - lastSpawnTime < 100) {
+      return;
+    }
+    lastSpawnTime = time;
+    const { x, y } = player;
+
+    const angle = normalizeAngle(player.rotation); // Ensure angle is within [0, 2π]
+
+    const playerHeight = player.displayHeight + 2;
+    const spawnOnTop = angle < -Math.PI / 2 && angle > (-Math.PI * 3) / 2;
+    const offsetX =
+      Math.cos(angle + Math.PI / 2 + (spawnOnTop ? Math.PI : 0)) * playerHeight;
+
+    const offsetY =
+      Math.sin(angle + Math.PI / 2 + (spawnOnTop ? Math.PI : 0)) * playerHeight; // 90 degrees to the right
+
+    const body = matter.add
+      .sprite(
+        x + offsetX,
+        y + offsetY,
+        "circle",
+
+        undefined,
+        {
+          shape: "circle",
+        },
+      )
+      .setScale(0.1, 0.1);
+
+    const outpushSpeed = 30;
+
+    body.setVelocity(
+      (player.body?.velocity.x ?? 0) +
+        outpushSpeed * Math.cos(angle + (spawnOnTop ? -1 : 1) * (Math.PI / 2)),
+      (player.body?.velocity.y ?? 0) +
+        outpushSpeed * Math.sin(angle + ((spawnOnTop ? -1 : 1) * Math.PI) / 2),
+    );
+
+    bombs.push(body);
+  };
+};
+
 const playerThruster = (state: Game["state"], delta: number) => {
   const angle = state.player.rotation;
-  const forceMagnitude = 0.001 * delta; // Adjust this value to control the force applied
+  const forceMagnitude = 0.00005 * delta; // Adjust this value to control the force applied
 
   if (state.keysDown?.has("z")) {
     const force = new Phaser.Math.Vector2(
