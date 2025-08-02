@@ -24,7 +24,8 @@ export class Game extends Scene {
         .sprite(100, 300, "square", undefined, {
           render: { lineColor: 0x00ffff },
         })
-        .setScale(0.3, 0.1),
+        .setScale(0.3, 0.1)
+        .setTint(0x00ff00),
       get pointerPos() {
         return camera.getWorldPoint(
           input.activePointer.worldX,
@@ -34,7 +35,9 @@ export class Game extends Scene {
       keysDown: new Set<string>(),
     };
 
-    this.systems = [bombSpawner, playerControls].map((system) => system(this));
+    this.systems = [bombSpawner, playerControls, boxSpawner].map((system) =>
+      system(this),
+    );
 
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
@@ -54,11 +57,11 @@ export class Game extends Scene {
 
     this.matter.add
       .sprite(300, 500, "square", undefined, {
-        render: { lineColor: 0x00ffff },
         isStatic: true,
       })
       .setOrigin(0.5, 0.5)
-      .setScale(100, 0.1);
+      .setScale(100, 1)
+      .setTint(0x008800);
   }
 
   update(time: number, delta: number): void {
@@ -67,12 +70,93 @@ export class Game extends Scene {
     this.systems.forEach((system) => system(time, delta));
   }
 }
+// random nice color between 0x000000 and 0xffffff
+const randomColor = () => {
+  return 0xffffff / 2 + Math.floor((Math.random() * 0xffffff) / 2);
+};
+
+const boxSpawner: System = (game) => {
+  let lastSpawnTime = 0;
+
+  return (time: number, _delta: number) => {
+    const {
+      keysDown,
+      pointerPos: { x, y },
+    } = game.state;
+
+    if (!keysDown?.has("x") || time - lastSpawnTime < 100) {
+      return;
+    }
+    lastSpawnTime = time;
+
+    game.matter.add
+      .sprite(x, y, "square", undefined)
+      .setScale(0.5, 0.5)
+      .setTint(randomColor());
+  };
+};
 
 type System = (game: Game) => (time: number, delta: number) => void;
-const bombSpawner: System = ({ state: { player, keysDown }, matter }) => {
+const bombSpawner: System = ({ state, matter }) => {
   let lastSpawnTime = 0;
   const bombs: Array<Phaser.Physics.Matter.Sprite> = [];
+  matter.world.on(
+    "collisionstart",
+    (event: MatterJS.IEventCollision<MatterJS.Engine>) => {
+      const collidedBodies = event.pairs.flatMap(({ bodyA, bodyB }) => [
+        bodyA,
+        bodyB,
+      ]);
+
+      const collidedBombs = bombs.filter(
+        (bomb) => bomb.body && collidedBodies.includes(bomb.body),
+      );
+
+      if (collidedBombs.length === 0) {
+        return;
+      }
+
+      for (const collidedBomb of collidedBombs) {
+        const radius = 400;
+        const { x: bombX, y: bombY } = collidedBomb;
+
+        const bodiesInRegion = matter.query.region(
+          matter.world.getAllBodies(),
+          {
+            min: { x: bombX - radius, y: bombY - radius },
+            max: { x: bombX + radius, y: bombY + radius },
+          },
+        );
+        const bodiesWithinRadius = bodiesInRegion.filter((body) => {
+          const dx = body.position.x - bombX;
+          const dy = body.position.y - bombY;
+          return Math.sqrt(dx * dx + dy * dy) <= radius;
+        });
+
+        collidedBomb.destroy();
+
+        bodiesWithinRadius.forEach((body) => {
+          if (body.isStatic) {
+            return; // Skip static bodies and ground
+          }
+
+          const distance = Math.sqrt(
+            (body.position.x - bombX) ** 2 + (body.position.y - bombY) ** 2,
+          );
+          const intensity = 1 - distance / radius;
+
+          // set velocity away from the bomb
+
+          matter.body.setVelocity(body, {
+            x: (body.position.x - bombX) * 0.1 * intensity,
+            y: (body.position.y - bombY) * 0.1 * intensity,
+          });
+        });
+      }
+    },
+  );
   return (time: number, _delta: number) => {
+    const { player, keysDown } = state;
     if (!keysDown?.has("b") || time - lastSpawnTime < 100) {
       return;
     }
@@ -90,17 +174,11 @@ const bombSpawner: System = ({ state: { player, keysDown }, matter }) => {
       Math.sin(angle + Math.PI / 2 + (spawnOnTop ? Math.PI : 0)) * playerHeight; // 90 degrees to the right
 
     const body = matter.add
-      .sprite(
-        x + offsetX,
-        y + offsetY,
-        "circle",
-
-        undefined,
-        {
-          shape: "circle",
-        },
-      )
-      .setScale(0.1, 0.1);
+      .sprite(x + offsetX, y + offsetY, "circle", undefined, {
+        shape: "circle",
+      })
+      .setScale(0.1, 0.1)
+      .setTint(0x000000);
 
     const outpushSpeed = 30;
 
