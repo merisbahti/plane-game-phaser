@@ -1,3 +1,4 @@
+import { Vector } from "matter";
 import { Scene } from "phaser";
 
 export class Game extends Scene {
@@ -7,6 +8,7 @@ export class Game extends Scene {
   state: {
     player: Phaser.Physics.Matter.Sprite;
     pointerPos: { x: number; y: number };
+    keysDown?: Set<string>;
   };
 
   constructor() {
@@ -21,6 +23,7 @@ export class Game extends Scene {
         })
         .setScale(1, 0.5),
       pointerPos: { x: 0, y: 0 },
+      keysDown: new Set<string>(),
     };
     this.camera = this.cameras.main;
 
@@ -42,9 +45,12 @@ export class Game extends Scene {
       console.log("Pointer moved:", worldX, worldY);
       this.state.pointerPos = { x: worldX, y: worldY };
     });
-    const keyobject = this.input.keyboard?.addKey("z");
-    keyobject?.on("down", (key: InputEvent) => {
-      console.log("Key pressed:", key);
+
+    this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
+      this.state.keysDown?.add(event.key);
+    });
+    this.input.keyboard?.on("keyup", (event: KeyboardEvent) => {
+      this.state.keysDown?.delete(event.key);
     });
 
     this.input.on("down", (pointer: InputEvent) => {
@@ -64,13 +70,7 @@ export class Game extends Scene {
     this.camera.centerOn(this.state.player.x, this.state.player.y);
 
     const { x: worldX, y: worldY } = this.state.pointerPos;
-    console.log(
-      "currpointer",
-      worldX,
-      worldY,
-      this.state.player.x,
-      this.state.player.y,
-    );
+
     const desiredAngle = Math.atan2(
       worldY - this.state.player.y,
       worldX - this.state.player.x,
@@ -82,6 +82,17 @@ export class Game extends Scene {
 
     const turnSpeed = 0.05; // Adjust this value to control the rotation speed
     this.state.player.setAngularVelocity(angleDiff * turnSpeed);
+
+    if (this.state.keysDown?.has("z")) {
+      const totalForce = 0.001 * delta; // Adjust this value to control the force applied
+      const angle = this.state.player.rotation;
+      this.state.player.applyForce(
+        new Phaser.Math.Vector2(
+          Math.cos(angle) * totalForce,
+          Math.sin(angle) * totalForce,
+        ),
+      );
+    }
   }
 }
 export const normalizeAngle = (angle: number) => {
