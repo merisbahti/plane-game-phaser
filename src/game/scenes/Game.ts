@@ -1,15 +1,11 @@
 import { Scene } from "phaser";
+import { GameState, System } from "./utils";
 
 export class Game extends Scene {
   camera: Phaser.Cameras.Scene2D.Camera;
   background: Phaser.GameObjects.Image;
 
-  state: {
-    player: Phaser.Physics.Matter.Sprite;
-    pointerPos: { x: number; y: number };
-    keysDown?: Set<string>;
-    planetBodies: Array<Phaser.Physics.Matter.Sprite>;
-  };
+  state: GameState;
   systems: Array<ReturnType<System>> = [];
 
   constructor() {
@@ -39,13 +35,9 @@ export class Game extends Scene {
       planetBodies: [],
     };
 
-    this.systems = [
-      bombSpawner,
-      playerControls,
-      boxSpawner,
-      cannonShooter,
-      gravityThing,
-    ].map((system) => system(this));
+    this.systems = [bombSpawner, playerControls, boxSpawner, cannonShooter].map(
+      (system) => system(this),
+    );
 
     this.camera.setBackgroundColor(0xaaaaaa);
     // Create the circle with Matter physics
@@ -75,53 +67,6 @@ const randomColor = () => {
   return 0xffffff / 2 + Math.floor((Math.random() * 0xffffff) / 2);
 };
 
-const gravityThing = (game: Game) => {
-  game.state.planetBodies.push(
-    game.matter.add
-      .sprite(100, 100, "circle", undefined, {
-        isStatic: true,
-        shape: "circle",
-      })
-      .setScale(1, 1)
-      .setTint(0x0000ff),
-  );
-
-  game.state.planetBodies.push(
-    game.matter.add
-      .sprite(300, 600, "square", undefined, { isStatic: true })
-      .setScale(2, 2)
-      .setTint(0x0000ff),
-  );
-  return (_time: number, delta: number) => {
-    game.matter.world.getAllBodies().forEach((body) => {
-      if (body.isStatic) {
-        return; // Skip static bodies and ground
-      }
-      const force = game.state.planetBodies.reduce(
-        (acc, curr) => {
-          if (curr.body === body) {
-            return acc;
-          }
-          const dist = Phaser.Math.Distance.Between(
-            curr.x,
-            curr.y,
-            body.position.x,
-            body.position.y,
-          );
-
-          const factor = (delta * 0.0005) / dist / dist;
-
-          acc.x += (curr.x - body.position.x) * factor;
-          acc.y += (curr.y - body.position.y) * factor;
-          return acc;
-        },
-        { x: 0, y: 0 },
-      );
-      game.matter.body.applyForce(body, body.position, force);
-    });
-  };
-};
-
 const boxSpawner: System = (game) => {
   let lastSpawnTime = 0;
 
@@ -142,8 +87,6 @@ const boxSpawner: System = (game) => {
       .setTint(randomColor());
   };
 };
-
-type System = (game: Game) => (time: number, delta: number) => void;
 
 const cannonShooter: System = ({ state, matter }) => {
   let lastSpawnTime = 0;
