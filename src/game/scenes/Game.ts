@@ -25,7 +25,7 @@ export class Game extends Scene {
           render: { lineColor: 0x00ffff },
         })
         .setScale(0.3, 0.1)
-        .setTint(0x00ff00),
+        .setTint(0xaaff00),
       get pointerPos() {
         return camera.getWorldPoint(
           input.activePointer.worldX,
