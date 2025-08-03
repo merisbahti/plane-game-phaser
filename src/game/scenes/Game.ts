@@ -1,4 +1,4 @@
-import { Scene } from "phaser";
+import { GameObjects, Scene } from "phaser";
 import { GameState, System } from "./utils";
 
 export class Game extends Scene {
@@ -12,6 +12,7 @@ export class Game extends Scene {
     boxSpawner,
     cannonShooter,
     explosionSystem,
+    healthSystem,
   ];
   updaters: Array<ReturnType<System>> = [];
 
@@ -31,6 +32,7 @@ export class Game extends Scene {
         .sprite(100, 300, "square", undefined, {
           render: { lineColor: 0x00ffff },
         })
+
         .setScale(0.6, 0.2)
         .setTint(0xaaff00),
       get pointerPos() {
@@ -42,6 +44,27 @@ export class Game extends Scene {
       keysDown: new Set<string>(),
       planetBodies: [],
       activeExplosions: [],
+      health: (() => {
+        const healthDb = new Map<GameObjects.GameObject, number | undefined>();
+        return {
+          all: healthDb,
+          get: (object: GameObjects.GameObject) => {
+            return {
+              get health() {
+                return healthDb.get(object);
+              },
+              set health(value: number) {
+                if (value <= 0) {
+                  healthDb.delete(object);
+                  object.destroy();
+                } else {
+                  healthDb.set(object, value);
+                }
+              },
+            };
+          },
+        };
+      })(),
       addExplosion: (x: number, y: number) => {
         const sprite = game.add.sprite(x, y, "kaboom");
         sprite.setScale(3, 3);
@@ -56,6 +79,7 @@ export class Game extends Scene {
         this.state.activeExplosions.push(sprite);
       },
     };
+    this.state.health.get(this.state.player).health = 1000;
 
     this.updaters = this.initialSystems.map((system) => system(this));
 
@@ -85,12 +109,51 @@ const randomColor = () => {
   return 0xffffff / 2 + Math.floor((Math.random() * 0xffffff) / 2);
 };
 
-const explosionSystem: System = ({ matter, state }) => {
+const healthSystem: System = (game) => {
+  const bars: Array<GameObjects.GameObject> = [];
+  return (_time: number, _delta: number) => {
+    // draw health bars above all game objects
+    bars.forEach((bar) => bar.destroy());
+    bars.length = 0;
+    game.matter.world.getAllBodies().forEach((body) => {
+      const gameObject = body.gameObject;
+      if (
+        !(gameObject instanceof Phaser.GameObjects.Sprite) ||
+        !game.state.health.get(gameObject)
+      ) {
+        return;
+      }
+      const healthData = game.state.health.get(gameObject);
+      if (healthData.health <= 0) {
+        return; // Skip dead objects
+      }
+
+      const healthBarWidth = 50;
+      const healthBarHeight = 5;
+
+      const healthBarX = gameObject.x - healthBarWidth / 2;
+      const healthBarY = gameObject.y - gameObject.displayHeight - 20;
+
+      const healthBar = game.add.graphics();
+      healthBar.fillStyle(0xff0000, 1);
+      healthBar.fillRect(
+        healthBarX,
+        healthBarY,
+        (healthData.health / 100) * healthBarWidth,
+        healthBarHeight,
+      );
+      bars.push(healthBar);
+    });
+  };
+};
+
+const explosionSystem: System = ({ matter, state, scene }) => {
   return (time: number, _delta: number) => {
     state.activeExplosions.forEach((explosion) => {
       const { x: explosionX, y: explosionY } = explosion.getCenter();
 
       const radius = explosion.displayWidth * 0.5;
+
       const bodiesInRegion = matter.query.region(matter.world.getAllBodies(), {
         min: { x: explosionX - radius, y: explosionY - radius },
         max: { x: explosionX + radius, y: explosionY + radius },
@@ -111,6 +174,10 @@ const explosionSystem: System = ({ matter, state }) => {
             (body.position.y - explosionY) ** 2,
         );
         const intensity = 1 - distance / radius;
+        const gameObject = body.gameObject;
+        const healthData = gameObject && state.health.get(gameObject);
+
+        if (healthData && gameObject) state.health.get(gameObject).health -= 10;
 
         // set velocity away from the bomb
 
@@ -208,10 +275,15 @@ const bombSpawner: System = ({ state, matter }) => {
       .sprite(x + offsetX, y + offsetY, "square", undefined, {})
       .setScale(0.2, 0.05)
       .setTint(0x000000);
+
     body.rotation = state.player.rotation;
     body.setAngularSpeed(0.05);
-    body.setOnCollide(() => {
+
+    state.health.get(body).health = 1;
+    body.on("destroy", () => {
       state.addExplosion(body.x, body.y);
+    });
+    body.setOnCollide(() => {
       body.destroy();
     });
 
