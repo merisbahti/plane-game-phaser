@@ -44,7 +44,7 @@ export class Game extends Scene {
       activeExplosions: [],
       addExplosion: (x: number, y: number) => {
         const sprite = game.add.sprite(x, y, "kaboom");
-        sprite.setScale(2, 2);
+        sprite.setScale(3, 3);
 
         sprite.on("animationcomplete", () => {
           sprite.destroy();
@@ -230,6 +230,7 @@ const bombSpawner: System = ({ state, matter }) => {
       .setScale(0.2, 0.05)
       .setTint(0x000000);
     body.rotation = state.player.rotation;
+    body.setAngularSpeed(0.05);
 
     const outpushSpeed = 30;
 
