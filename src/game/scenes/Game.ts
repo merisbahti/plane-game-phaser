@@ -185,28 +185,7 @@ const cannonShooter: System = ({ state, matter }) => {
 const bombSpawner: System = ({ state, matter }) => {
   let lastSpawnTime = 0;
   const bombs: Array<Phaser.Physics.Matter.Sprite> = [];
-  matter.world.on(
-    "collisionstart",
-    (event: MatterJS.IEventCollision<MatterJS.Engine>) => {
-      const collidedBodies = event.pairs.flatMap(({ bodyA, bodyB }) => [
-        bodyA,
-        bodyB,
-      ]);
 
-      const collidedBombs = bombs.filter(
-        (bomb) => bomb.body && collidedBodies.includes(bomb.body),
-      );
-
-      if (collidedBombs.length === 0) {
-        return;
-      }
-
-      for (const collidedBomb of collidedBombs) {
-        state.addExplosion(collidedBomb.x, collidedBomb.y);
-        collidedBomb.destroy();
-      }
-    },
-  );
   return (time: number, _delta: number) => {
     const { player, keysDown } = state;
     if (!keysDown?.has("b") || time - lastSpawnTime < 100) {
@@ -231,6 +210,10 @@ const bombSpawner: System = ({ state, matter }) => {
       .setTint(0x000000);
     body.rotation = state.player.rotation;
     body.setAngularSpeed(0.05);
+    body.setOnCollide(() => {
+      state.addExplosion(body.x, body.y);
+      body.destroy();
+    });
 
     const outpushSpeed = 30;
 
