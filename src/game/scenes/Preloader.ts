@@ -46,7 +46,7 @@ export class Preloader extends Scene {
         end: 7,
       }),
       // repeat: -1,
-      frameRate: 16,
+      frameRate: 36,
     });
     this.scene.start("Game");
   }
