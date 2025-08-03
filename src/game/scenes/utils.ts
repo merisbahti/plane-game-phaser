@@ -8,10 +8,8 @@ export type GameState = {
   activeExplosions: Array<Phaser.GameObjects.Sprite>;
   addExplosion: (x: number, y: number) => void;
   health: {
-    all: Map<GameObjects.GameObject, number>;
-    get: (object: GameObjects.GameObject) => {
-      health: number;
-    };
+    get: (gameObject: GameObjects.GameObject) => number | null;
+    set: (gameObject: GameObjects.GameObject, health: number) => void;
   };
 };
 

@@ -44,27 +44,6 @@ export class Game extends Scene {
       keysDown: new Set<string>(),
       planetBodies: [],
       activeExplosions: [],
-      health: (() => {
-        const healthDb = new Map<GameObjects.GameObject, number | undefined>();
-        return {
-          all: healthDb,
-          get: (object: GameObjects.GameObject) => {
-            return {
-              get health() {
-                return healthDb.get(object);
-              },
-              set health(value: number) {
-                if (value <= 0) {
-                  healthDb.delete(object);
-                  object.destroy();
-                } else {
-                  healthDb.set(object, value);
-                }
-              },
-            };
-          },
-        };
-      })(),
       addExplosion: (x: number, y: number) => {
         const sprite = game.add.sprite(x, y, "kaboom");
         sprite.setScale(3, 3);
@@ -78,9 +57,24 @@ export class Game extends Scene {
         sprite.play("kaboom-boom");
         this.state.activeExplosions.push(sprite);
       },
+      health: {
+        get: (gameObject: GameObjects.GameObject): number | null => {
+          const healthData = gameObject.getData("health");
+          if (typeof healthData === "number") {
+            return healthData;
+          }
+          return null;
+        },
+        set: (gameObject: GameObjects.GameObject, health: number) => {
+          gameObject.setData("health", health);
+          if (health <= 0) {
+            gameObject.destroy();
+            return;
+          }
+        },
+      },
     };
-    this.state.health.get(this.state.player).health = 1000;
-
+    this.state.health.set(this.state.player, 1000);
     this.updaters = this.initialSystems.map((system) => system(this));
 
     this.camera.setBackgroundColor(0xaaaaaa);
@@ -110,21 +104,25 @@ const randomColor = () => {
 };
 
 const healthSystem: System = (game) => {
+  game.data.events.addListener("changedata-health", (x) => {
+    console.log("health event triggered", x);
+  });
   const bars: Array<GameObjects.GameObject> = [];
   return (_time: number, _delta: number) => {
     // draw health bars above all game objects
     bars.forEach((bar) => bar.destroy());
     bars.length = 0;
-    game.matter.world.getAllBodies().forEach((body) => {
-      const gameObject = body.gameObject;
+    game.children.each((gameObject) => {
+      const healthData = gameObject.getData("health");
+
       if (
-        !(gameObject instanceof Phaser.GameObjects.Sprite) ||
-        !game.state.health.get(gameObject)
+        typeof healthData !== "number" ||
+        !(gameObject instanceof GameObjects.Sprite)
       ) {
         return;
       }
-      const healthData = game.state.health.get(gameObject);
-      if (healthData.health <= 0) {
+
+      if (healthData <= 0) {
         return; // Skip dead objects
       }
 
@@ -139,7 +137,7 @@ const healthSystem: System = (game) => {
       healthBar.fillRect(
         healthBarX,
         healthBarY,
-        (healthData.health / 100) * healthBarWidth,
+        (healthData / 100) * healthBarWidth,
         healthBarHeight,
       );
       bars.push(healthBar);
@@ -147,8 +145,8 @@ const healthSystem: System = (game) => {
   };
 };
 
-const explosionSystem: System = ({ matter, state, scene }) => {
-  return (time: number, _delta: number) => {
+const explosionSystem: System = ({ matter, state }) => {
+  return (_time: number, _delta: number) => {
     state.activeExplosions.forEach((explosion) => {
       const { x: explosionX, y: explosionY } = explosion.getCenter();
 
@@ -177,7 +175,8 @@ const explosionSystem: System = ({ matter, state, scene }) => {
         const gameObject = body.gameObject;
         const healthData = gameObject && state.health.get(gameObject);
 
-        if (healthData && gameObject) state.health.get(gameObject).health -= 10;
+        if (healthData && gameObject)
+          state.health.set(gameObject, healthData - 10);
 
         // set velocity away from the bomb
 
@@ -278,8 +277,7 @@ const bombSpawner: System = ({ state, matter }) => {
 
     body.rotation = state.player.rotation;
     body.setAngularSpeed(0.05);
-
-    state.health.get(body).health = 1;
+    state.health.set(body, 1);
     body.on("destroy", () => {
       state.addExplosion(body.x, body.y);
     });
