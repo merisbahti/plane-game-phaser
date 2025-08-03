@@ -44,6 +44,8 @@ export class Game extends Scene {
       activeExplosions: [],
       addExplosion: (x: number, y: number) => {
         const sprite = game.add.sprite(x, y, "kaboom");
+        sprite.setScale(2, 2);
+
         sprite.on("animationcomplete", () => {
           sprite.destroy();
           this.state.activeExplosions = this.state.activeExplosions.filter(
@@ -88,7 +90,7 @@ const explosionSystem: System = ({ matter, state }) => {
     state.activeExplosions.forEach((explosion) => {
       const { x: explosionX, y: explosionY } = explosion.getCenter();
 
-      const radius = explosion.displayWidth * 2;
+      const radius = explosion.displayWidth * 0.5;
       const bodiesInRegion = matter.query.region(matter.world.getAllBodies(), {
         min: { x: explosionX - radius, y: explosionY - radius },
         max: { x: explosionX + radius, y: explosionY + radius },
@@ -116,8 +118,8 @@ const explosionSystem: System = ({ matter, state }) => {
           body,
           { x: explosionX, y: explosionY },
           {
-            x: (body.position.x - explosionX) * 0.0001 * intensity,
-            y: (body.position.y - explosionY) * 0.0001 * intensity,
+            x: (body.position.x - explosionX) * 0.0005 * intensity,
+            y: (body.position.y - explosionY) * 0.0005 * intensity,
           },
         );
       });
