@@ -104,21 +104,15 @@ const randomColor = () => {
 };
 
 const healthSystem: System = (game) => {
-  game.data.events.addListener("changedata-health", (x) => {
-    console.log("health event triggered", x);
-  });
   const bars: Array<GameObjects.GameObject> = [];
   return (_time: number, _delta: number) => {
     // draw health bars above all game objects
     bars.forEach((bar) => bar.destroy());
     bars.length = 0;
     game.children.each((gameObject) => {
-      const healthData = gameObject.getData("health");
+      const healthData = game.state.health.get(gameObject);
 
-      if (
-        typeof healthData !== "number" ||
-        !(gameObject instanceof GameObjects.Sprite)
-      ) {
+      if (!healthData || !(gameObject instanceof GameObjects.Sprite)) {
         return;
       }
 
