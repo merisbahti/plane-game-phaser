@@ -19,7 +19,6 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: "#028af8",
   scene: [Boot, Preloader, MainMenu, MainGame, GameOver],
 };
-console.log("hi");
 
 const StartGame = (parent: string) => {
   return new Game({ ...config, parent });

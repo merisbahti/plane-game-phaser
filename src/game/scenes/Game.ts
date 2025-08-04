@@ -1,5 +1,6 @@
 import { GameObjects, Scene } from "phaser";
 import { GameState, System } from "./utils";
+import { Collision } from "matter";
 
 export class Game extends Scene {
   camera: Phaser.Cameras.Scene2D.Camera;
@@ -29,12 +30,10 @@ export class Game extends Scene {
     camera.setZoom(0.5);
     this.state = {
       player: this.matter.add
-        .sprite(100, 300, "square", undefined, {
-          render: { lineColor: 0x00ffff },
-        })
+        .sprite(20, 20, "nighthawk", undefined, { isStatic: false })
+        .setOrigin(0.5, 0.5)
+        .setScale(0.5, 0.5),
 
-        .setScale(0.6, 0.2)
-        .setTint(0xaaff00),
       get pointerPos() {
         return camera.getWorldPoint(
           input.activePointer.worldX,
@@ -46,7 +45,7 @@ export class Game extends Scene {
       activeExplosions: [],
       addExplosion: (x: number, y: number) => {
         const sprite = game.add.sprite(x, y, "kaboom");
-        sprite.setScale(3, 3);
+        sprite.setScale(5, 5);
 
         sprite.on("animationcomplete", () => {
           sprite.destroy();
@@ -123,8 +122,11 @@ const healthSystem: System = (game) => {
       const healthBarWidth = 50;
       const healthBarHeight = 5;
 
-      const healthBarX = gameObject.x - healthBarWidth / 2;
-      const healthBarY = gameObject.y - gameObject.displayHeight - 20;
+      const healthBarX =
+        gameObject.getLeftCenter().x -
+        ((healthData / 100) * healthBarWidth) / 2;
+      const healthBarY =
+        gameObject.getCenter().y - gameObject.displayHeight - 20;
 
       const healthBar = game.add.graphics();
       healthBar.fillStyle(0xff0000, 1);
@@ -144,7 +146,7 @@ const explosionSystem: System = ({ matter, state }) => {
     state.activeExplosions.forEach((explosion) => {
       const { x: explosionX, y: explosionY } = explosion.getCenter();
 
-      const radius = explosion.displayWidth * 0.5;
+      const radius = explosion.displayWidth;
 
       const bodiesInRegion = matter.query.region(matter.world.getAllBodies(), {
         min: { x: explosionX - radius, y: explosionY - radius },
@@ -201,10 +203,14 @@ const boxSpawner: System = (game) => {
     }
     lastSpawnTime = time;
 
-    game.matter.add
+    const body = game.matter.add
       .sprite(x, y, "square", undefined)
-      .setScale(0.5, 0.5)
+      .setScale(2, 2)
       .setTint(randomColor());
+    game.state.health.set(body, 100);
+    body.on("destroy", () => {
+      game.state.addExplosion(body.x, body.y);
+    });
   };
 };
 
@@ -235,6 +241,16 @@ const cannonShooter: System = ({ state, matter }) => {
       .setTint(0xffff00);
 
     const outpushSpeed = 30;
+    body.setOnCollide(
+      (otherBody: Phaser.Types.Physics.Matter.MatterCollisionData) => {
+        const gameObject = otherBody.bodyA.gameObject;
+        const healthData = gameObject && state.health.get(gameObject);
+        if (healthData) {
+          state.health.set(gameObject, healthData - 50);
+        }
+        body.destroy();
+      },
+    );
 
     body.setVelocity(
       (player.body?.velocity.x ?? 0) + outpushSpeed * Math.cos(angle),
@@ -256,7 +272,7 @@ const bombSpawner: System = ({ state, matter }) => {
 
     const angle = normalizeAngle(player.rotation); // Ensure angle is within [0, 2π]
 
-    const playerHeight = player.displayHeight + 2;
+    const playerHeight = player.displayHeight;
     const spawnOnTop = angle < -Math.PI / 2 && angle > (-Math.PI * 3) / 2;
     const offsetX =
       Math.cos(angle + Math.PI / 2 + (spawnOnTop ? Math.PI : 0)) * playerHeight;
@@ -306,7 +322,7 @@ const playerControls: System = ({ state }) => {
     const turnSpeed = 0.05; // Adjust this value to control the rotation speed
     player.setAngularVelocity(angleDiff * turnSpeed);
 
-    const forceMagnitude = 0.0002 * delta; // Adjust this value to control the force applied
+    const forceMagnitude = 0.005 * delta; // Adjust this value to control the force applied
 
     if (keysDown?.has("z")) {
       const force = new Phaser.Math.Vector2(

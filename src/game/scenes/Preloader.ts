@@ -27,6 +27,7 @@ export class Preloader extends Scene {
     this.load.setPath("assets");
 
     this.load.image("circle", "circle.svg");
+    this.load.image("nighthawk", "nighthawk.png");
     this.load.image("square", "square.svg");
     this.load.spritesheet("kaboom", "kaboom.png", {
       frameWidth: 64,
