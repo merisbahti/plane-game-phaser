@@ -1,6 +1,5 @@
 import { GameObjects, Scene } from "phaser";
 import { GameState, System } from "./utils";
-import { Collision } from "matter";
 
 export class Game extends Scene {
   camera: Phaser.Cameras.Scene2D.Camera;
@@ -111,12 +110,12 @@ const healthSystem: System = (game) => {
     game.children.each((gameObject) => {
       const healthData = game.state.health.get(gameObject);
 
-      if (!healthData || !(gameObject instanceof GameObjects.Sprite)) {
+      if (
+        !healthData ||
+        !(gameObject instanceof GameObjects.Sprite) ||
+        healthData <= 0
+      ) {
         return;
-      }
-
-      if (healthData <= 0) {
-        return; // Skip dead objects
       }
 
       const healthBarWidth = 50;
@@ -311,16 +310,19 @@ const bombSpawner: System = ({ state, matter }) => {
 const playerControls: System = ({ state }) => {
   return (_time: number, delta: number) => {
     const { player, keysDown, pointerPos } = state;
-    const angle = player.rotation;
+    const angle = normalizeAngle(player.rotation);
     const { x: worldX, y: worldY } = pointerPos;
 
-    const desiredAngle = Math.atan2(worldY - player.y, worldX - player.x);
+    const desiredAngle = normalizeAngle(
+      Math.atan2(worldY - player.y, worldX - player.x),
+    );
 
     // slowly rotate the player towards the desired angle
     const angleDiff = normalizeAngle(desiredAngle - angle);
 
     const turnSpeed = 0.05; // Adjust this value to control the rotation speed
     player.setAngularVelocity(angleDiff * turnSpeed);
+    console.log("angleDiff", angleDiff);
 
     const forceMagnitude = 0.005 * delta; // Adjust this value to control the force applied
 
@@ -335,10 +337,11 @@ const playerControls: System = ({ state }) => {
 };
 
 export const normalizeAngle = (angle: number) => {
-  if (angle > Math.PI) {
-    return angle - 2 * Math.PI;
-  } else if (angle < -Math.PI) {
-    return angle + 2 * Math.PI;
+  while (angle > Math.PI) {
+    angle -= 2 * Math.PI;
+  }
+  while (angle < -Math.PI) {
+    angle += 2 * Math.PI;
   }
   return angle;
 };
