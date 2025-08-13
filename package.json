@@ -9,6 +9,10 @@
     "author": "Phaser Studio <support@phaser.io> (https://phaser.io/)",
     "license": "MIT",
     "licenseUrl": "http://www.opensource.org/licenses/mit-license.php",
+	  "prettier": {
+		  "semi": false
+
+		},
     "bugs": {
         "url": "https://github.com/phaserjs/template-vite-ts/issues"
     },
@@ -20,10 +24,18 @@
         "build-nolog": "vite build --config vite/config.prod.mjs"
     },
     "devDependencies": {
+        "@eslint/js": "^9.33.0",
+        "eslint": "^9.33.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.4",
+        "globals": "^16.3.0",
+        "prettier": "3.6.2",
         "typescript": "~5.7.2",
+        "typescript-eslint": "^8.39.1",
         "vite": "^6.3.1"
     },
     "dependencies": {
+        "jiti": "^2.5.1",
         "phaser": "^3.90.0",
         "terser": "^5.39.0"
     }
