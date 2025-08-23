@@ -22,7 +22,6 @@ export class Game extends Scene {
   create() {
     const input = this.input
     this.camera = this.cameras.main
-    const game = this
 
     const camera = this.camera
     camera.setZoom(0.5)
@@ -42,7 +41,7 @@ export class Game extends Scene {
       planetBodies: [],
       activeExplosions: [],
       addExplosion: (x: number, y: number) => {
-        const sprite = game.add.sprite(x, y, "kaboom")
+        const sprite = this.add.sprite(x, y, "kaboom")
         sprite.setScale(5, 5)
 
         sprite.on("animationcomplete", () => {
@@ -77,33 +76,9 @@ export class Game extends Scene {
     this.camera.setBackgroundColor(0xaaaaaa)
     // Create the circle with Matter physics
 
-    const vertices = [
-      { x: 0, y: 1000 },
-      { x: 200, y: 550 },
-      { x: 400, y: 600 },
-      { x: 800, y: 800 },
-    ] // Define an array of points for your ground shape.
-
-    const groundBody = this.matter.add.fromVertices(0, 0, vertices, {
-      isStatic: true, // Make the ground static.
-    })
-
-    const graphics = this.add.graphics()
-    graphics.fillStyle(0x00ff00, 1) // Green fill, 100% opacity
-    graphics.lineStyle(2, 0xff0000, 1) // Red outline, 2px thick
-
-    graphics.beginPath()
-    graphics.moveTo(vertices[0].x + 100, vertices[0].y - 420)
-    for (let i = 1; i < vertices.length; i++) {
-      graphics.lineTo(vertices[i].x + 100, vertices[i].y - 420)
-    }
-    graphics.closePath()
-    graphics.fillPath()
-    graphics.strokePath()
-
-    // this.matter.add
-    //   .sprite(300, 500, "square", undefined, { isStatic: true })
-    //   .setScale(100, 1);
+    this.matter.add
+      .sprite(300, 500, "square", undefined, { isStatic: true })
+      .setScale(100, 1)
 
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       this.state.keysDown?.add(event.key)

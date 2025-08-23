@@ -11,7 +11,7 @@ const config: Phaser.Types.Core.GameConfig = {
   type: AUTO,
   physics: {
     default: "matter",
-    matter: { enabled: true, debug: true },
+    matter: { enabled: true },
   },
   width: 1024,
   height: 768,
